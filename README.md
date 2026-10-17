@@ -35,6 +35,15 @@ _Link to a live demo, video, or screenshots._
 
 ## Getting Started
 
+### Backend (temporary local database)
+
+The Spring Boot backend uses an in-memory H2 database for local development, so PostgreSQL is not required yet. Data is cleared whenever the backend stops.
+
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
 ### Prerequisites
 
 _List runtimes and tools needed (e.g. Node 20+, Python 3.11+)._
