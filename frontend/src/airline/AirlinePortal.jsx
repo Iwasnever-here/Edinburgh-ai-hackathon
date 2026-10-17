@@ -6,6 +6,7 @@ import MyBids from './MyBids.jsx'
 import SignIn from './SignIn.jsx'
 import { SIMULATED, getAirlines, getMarketplace, getMyBids, startSimulatedCompetition } from './api.js'
 import { useNow, usePolling } from './hooks.js'
+import './airline.css'
 
 const POLL_MS = 2000
 
@@ -16,6 +17,14 @@ const TABS = [
 ]
 
 export default function AirlinePortal() {
+  return (
+    <div className="ap-root">
+      <PortalContent />
+    </div>
+  )
+}
+
+function PortalContent() {
   const [airlines, setAirlines] = useState(null)
   const [error, setError] = useState(null)
   const [airlineId, setAirlineId] = useState(null)
@@ -34,15 +43,13 @@ export default function AirlinePortal() {
     <Workspace
       key={airline.id}
       airline={airline}
-      airlines={airlines}
-      onSwitch={setAirlineId}
       onSignOut={() => setAirlineId(null)}
       onAirlineUpdated={(updated) => setAirlines((list) => list.map((a) => (a.id === updated.id ? updated : a)))}
     />
   )
 }
 
-function Workspace({ airline, airlines, onSwitch, onSignOut, onAirlineUpdated }) {
+function Workspace({ airline, onSignOut, onAirlineUpdated }) {
   const [tab, setTab] = useState('market')
   const now = useNow(1000)
   const market = usePolling(() => getMarketplace(airline.id), POLL_MS, [airline.id])
@@ -78,7 +85,7 @@ function Workspace({ airline, airlines, onSwitch, onSignOut, onAirlineUpdated })
 
   return (
     <div className="ap-app">
-      <Header airline={airline} airlines={airlines} stats={stats} onSwitch={onSwitch} onSignOut={onSignOut} />
+      <Header airline={airline} stats={stats} onSignOut={onSignOut} />
 
       <main className="ap-container ap-main">
         <div className="ap-tabs" role="tablist" aria-label="Portal sections">

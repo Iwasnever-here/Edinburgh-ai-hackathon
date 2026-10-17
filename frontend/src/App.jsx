@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 
 import logo from "./assets/logo.png";
 
@@ -1822,7 +1823,7 @@ export default function App() {
 
             <button className="icon-btn" onClick={() => alert("Language and currency selection is a demo.")}>🌐 EN · GBP</button>
 
-            <button className="icon-btn" onClick={() => alert("Sign-in is not connected in this demo.")}>Log in</button>
+            <Link to="/airline">Airline login</Link>
 
           </nav>
 

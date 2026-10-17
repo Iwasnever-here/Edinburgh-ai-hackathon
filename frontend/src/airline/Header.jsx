@@ -1,28 +1,24 @@
-export default function Header({ airline, airlines, stats, onSwitch, onSignOut }) {
+import { Link } from 'react-router-dom'
+
+export default function Header({ airline, stats, onSignOut }) {
   return (
     <header className="ap-header">
       <div className="ap-container ap-header__bar">
-        <div className="ap-brand">
+        <Link className="ap-brand ap-brand--link" to="/" aria-label="BidScanner home">
           <span className="ap-brand__mark" aria-hidden="true">B</span>
           <div>
             <div className="ap-brand__name">BidScanner</div>
             <div className="ap-brand__sub">Airline Portal</div>
           </div>
-        </div>
+        </Link>
         <div className="ap-account">
           <span className="ap-avatar" style={{ background: airline.colour }} aria-hidden="true">
             {airline.code}
           </span>
-          <label className="ap-account__switch">
+          <div className="ap-account__switch">
             <span className="ap-account__label">Signed in as</span>
-            <select className="ap-account__select" value={airline.id} onChange={(e) => onSwitch(e.target.value)}>
-              {airlines.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          </label>
+            <span className="ap-account__name">{airline.name}</span>
+          </div>
           <button className="ap-btn ap-btn--ghost-dark" type="button" onClick={onSignOut}>
             Sign out
           </button>

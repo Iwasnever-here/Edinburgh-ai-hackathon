@@ -1,6 +1,10 @@
-/* BidScanner airline portal. All classes are prefixed `ap-` to stay clear of the main app. */
+/*
+ * BidScanner airline portal. Classes are prefixed `ap-`, and base styles are scoped to
+ * `.ap-root` so nothing leaks into the home page when both are loaded in the same SPA.
+ */
 
-:root {
+.ap-root {
+  min-height: 100vh;
   --ap-bg: #eef1f8;
   --ap-surface: #ffffff;
   --ap-ink: #0b1325;
@@ -30,13 +34,15 @@
   -webkit-font-smoothing: antialiased;
 }
 
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--ap-bg); }
-button, input, select { font: inherit; color: inherit; }
-button { cursor: pointer; }
-button:disabled { cursor: not-allowed; }
-h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
-:focus-visible { outline: 3px solid var(--ap-primary); outline-offset: 2px; }
+body:has(.ap-root) { margin: 0; background: #eef1f8; }
+/* :where() keeps these base rules at zero specificity so component classes still win. */
+:where(.ap-root *, .ap-root *::before, .ap-root *::after) { box-sizing: border-box; }
+:where(.ap-root button, .ap-root input, .ap-root select) { font: inherit; color: inherit; }
+:where(.ap-root button) { cursor: pointer; }
+:where(.ap-root button:disabled) { cursor: not-allowed; }
+:where(.ap-root h1, .ap-root h2, .ap-root h3) { margin: 0; letter-spacing: -0.02em; }
+:where(.ap-root a) { color: inherit; }
+:where(.ap-root :focus-visible) { outline: 3px solid var(--ap-primary); outline-offset: 2px; }
 
 .ap-container { max-width: 1320px; margin: 0 auto; padding-inline: clamp(16px, 3vw, 32px); }
 .ap-center { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
@@ -121,7 +127,7 @@ h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
   display: flex; flex-direction: column; gap: 22px; box-shadow: 0 30px 80px rgb(0 0 0 / 35%);
 }
 .ap-signin__title { font-size: clamp(26px, 4vw, 34px); line-height: 1.15; font-weight: 850; }
-.ap-signin__lede { margin: -8px 0 0; color: var(--ap-ink-2); }
+.ap-signin__lede { margin: 6px 0 0; color: var(--ap-ink-2); }
 .ap-signin__note { margin: -6px 0 0; text-align: center; font-size: 14px; color: var(--ap-muted); }
 
 /* ---------- Header ---------- */
@@ -131,10 +137,7 @@ h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
 .ap-avatar { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-weight: 850; color: #fff; border: 2px solid rgb(255 255 255 / 25%); }
 .ap-account__switch { display: flex; flex-direction: column; }
 .ap-account__label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.7; font-weight: 700; }
-.ap-account__select {
-  background: transparent; border: 0; color: #fff; font-size: 20px; font-weight: 800; padding: 0 4px 0 0; cursor: pointer;
-}
-.ap-account__select option { color: var(--ap-ink); }
+.ap-account__name { font-size: 20px; font-weight: 800; }
 
 .ap-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding-top: 8px; }
 .ap-stat { background: rgb(255 255 255 / 7%); border: 1px solid rgb(255 255 255 / 12%); border-radius: var(--ap-radius); padding: 16px 20px; }
@@ -339,7 +342,7 @@ h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
   .ap-strategies { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
-  :root { font-size: 16px; }
+  .ap-root { font-size: 16px; }
   .ap-stats { gap: 8px; }
   .ap-stat { padding: 12px; }
   .ap-stat__label { font-size: 11px; }
@@ -350,5 +353,29 @@ h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .ap-root *, .ap-root *::before, .ap-root *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- Partner login ---------- */
+.ap-signin__form { display: flex; flex-direction: column; gap: 16px; }
+.ap-input {
+  width: 100%; padding: 14px 16px; border: 2px solid var(--ap-line); border-radius: 12px; background: #fff; font-size: 18px;
+  transition: border-color 0.15s;
+}
+.ap-input:focus { border-color: var(--ap-primary); outline: none; }
+.ap-input[aria-invalid='true'] { border-color: var(--ap-red); background: #fffafa; }
+.ap-signin__error { margin: -4px 0 0; color: var(--ap-red); font-weight: 700; }
+.ap-signin__quick { display: flex; flex-direction: column; gap: 12px; }
+.ap-signin__divider { display: flex; align-items: center; gap: 12px; color: var(--ap-muted); font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+.ap-signin__divider::before, .ap-signin__divider::after { content: ''; flex: 1; height: 1px; background: var(--ap-line); }
+.ap-signin__quick-list { display: flex; flex-direction: column; gap: 8px; }
+.ap-quick {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 14px; border-radius: 12px;
+  border: 2px solid var(--ap-line); background: #fff; font-weight: 700; transition: border-color 0.15s, background 0.15s;
+}
+.ap-quick:hover { border-color: #b3c0ff; background: #f7f8ff; }
+.ap-avatar--small { width: 32px; height: 32px; border-radius: 9px; font-size: 13px; border: 0; }
+.ap-signin__note code { background: #eef1f8; padding: 1px 6px; border-radius: 6px; font-size: 0.95em; }
+.ap-signin__back { align-self: center; color: var(--ap-muted); font-weight: 650; text-decoration: none; }
+.ap-signin__back:hover { color: var(--ap-primary); }
+.ap-brand--link { color: inherit; text-decoration: none; }
