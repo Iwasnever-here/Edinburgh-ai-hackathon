@@ -1,5 +1,7 @@
+
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import logo from '../assets/logo.png'
 
 /** Demo-only credentials. There is no real authentication. */
 const DEMO_ACCOUNTS = [
@@ -21,11 +23,17 @@ export default function SignIn({ airlines, onSignIn }) {
 
   function handleSubmit(e) {
     e.preventDefault()
-    const account = DEMO_ACCOUNTS.find((a) => a.username === username.trim().toLowerCase() && a.password === password)
+    const account = DEMO_ACCOUNTS.find(
+      (a) =>
+        a.username === username.trim().toLowerCase() &&
+        a.password === password
+    )
+
     if (!account) {
       setError('Incorrect username or password.')
       return
     }
+
     onSignIn(account.airlineId)
   }
 
@@ -36,19 +44,42 @@ export default function SignIn({ airlines, onSignIn }) {
   return (
     <div className="ap-signin">
       <div className="ap-signin__card">
+
+        {/* # ---------- BRAND LOGO ---------- */}
+
         <div className="ap-brand ap-brand--large">
-          <span className="ap-brand__mark" aria-hidden="true">B</span>
+          <img
+  src={logo}
+  alt="BidScanner logo"
+  style={{
+    width: '48px',
+    height: '48px',
+    objectFit: 'contain',
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 0,
+    padding: 0,
+    boxShadow: 'none',
+  }}
+/>
           <div>
             <div className="ap-brand__name">BidScanner</div>
             <div className="ap-brand__sub">Partner login</div>
           </div>
         </div>
+
         <div>
           <h1 className="ap-signin__title">Airline login</h1>
-          <p className="ap-signin__lede">Travellers name their price. Sign in to bid on live requests.</p>
+          <p className="ap-signin__lede">
+            Travellers name their price. Sign in to bid on live requests.
+          </p>
         </div>
 
-        <form className="ap-signin__form" onSubmit={handleSubmit} noValidate>
+        <form
+          className="ap-signin__form"
+          onSubmit={handleSubmit}
+          noValidate
+        >
           <label className="ap-field">
             <span className="ap-field__label">Username</span>
             <input
@@ -67,6 +98,7 @@ export default function SignIn({ airlines, onSignIn }) {
               required
             />
           </label>
+
           <label className="ap-field">
             <span className="ap-field__label">Password</span>
             <input
@@ -84,30 +116,55 @@ export default function SignIn({ airlines, onSignIn }) {
               required
             />
           </label>
+
           {error && (
-            <p id="ap-signin-error" className="ap-signin__error" role="alert">
+            <p
+              id="ap-signin-error"
+              className="ap-signin__error"
+              role="alert"
+            >
               {error}
             </p>
           )}
-          <button className="ap-btn ap-btn--primary ap-btn--block" type="submit">
+
+          <button
+            className="ap-btn ap-btn--primary ap-btn--block"
+            type="submit"
+          >
             Sign in
           </button>
         </form>
 
         <div className="ap-signin__quick">
-          <div className="ap-signin__divider"><span>or</span></div>
-          <div className="ap-signin__quick-list">
-            {quickAccounts.map(({ username: name, airlineId, airline }) => (
-              <button key={name} type="button" className="ap-quick" onClick={() => onSignIn(airlineId)}>
-                <span className="ap-avatar ap-avatar--small" style={{ background: airline.colour }} aria-hidden="true">
-                  {airline.code}
-                </span>
-                Sign in as {airline.name}
-              </button>
-            ))}
+          <div className="ap-signin__divider">
+            <span>or</span>
           </div>
+
+          <div className="ap-signin__quick-list">
+            {quickAccounts.map(
+              ({ username: name, airlineId, airline }) => (
+                <button
+                  key={name}
+                  type="button"
+                  className="ap-quick"
+                  onClick={() => onSignIn(airlineId)}
+                >
+                  <span
+                    className="ap-avatar ap-avatar--small"
+                    style={{ background: airline.colour }}
+                    aria-hidden="true"
+                  >
+                    {airline.code}
+                  </span>
+                  Sign in as {airline.name}
+                </button>
+              )
+            )}
+          </div>
+
           <p className="ap-signin__note">
-            Demo accounts, not real authentication. Username is the airline name, password <code>demo</code>.
+            Demo accounts, not real authentication. Username is the
+            airline name, password <code>demo</code>.
           </p>
         </div>
 
