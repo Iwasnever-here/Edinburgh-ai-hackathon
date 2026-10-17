@@ -35,9 +35,9 @@ _Link to a live demo, video, or screenshots._
 
 ## Getting Started
 
-### Backend (temporary local database)
+### Backend
 
-The Spring Boot backend uses an in-memory H2 database for local development, so PostgreSQL is not required yet. Data is cleared whenever the backend stops.
+The Spring Boot backend currently runs without a database. For the hackathon demo, backend data can be held in memory while the app is running.
 
 ```bash
 cd backend
