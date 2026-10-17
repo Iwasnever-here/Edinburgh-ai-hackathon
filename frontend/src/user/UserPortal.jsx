@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { acceptDemoBid, getRequestsForEmail, DEMO_TRAVELLERS, seedDemoTraveller } from "./userData";
 import { acceptBackendOffer, getRequestOffers } from "../airline/api.js";
 
@@ -6,33 +6,40 @@ import { acceptBackendOffer, getRequestOffers } from "../airline/api.js";
 export default function UserPortal({ email, onSignIn, onSignOut, onBack }) {
   const [draftEmail, setDraftEmail] = useState(email || "");
   const [error, setError] = useState("");
+  const [offerLoadError, setOfferLoadError] = useState("");
   const [version, setVersion] = useState(0);
   const [backendOffers, setBackendOffers] = useState({});
   const [loadingOffers, setLoadingOffers] = useState(false);
-  const storedRequests = email ? getRequestsForEmail(email) : [];
+  const storedRequests = useMemo(() => email ? getRequestsForEmail(email) : [], [email, version]);
 
   useEffect(() => {
     let cancelled = false;
     if (!email || storedRequests.length === 0) {
-      setBackendOffers({});
       return () => { cancelled = true; };
     }
     setLoadingOffers(true);
+    setOfferLoadError("");
     Promise.all(storedRequests.map(async (request) => {
+      // Seeded demo requests only exist in browser storage, not in the backend.
+      if (request.id.startsWith("demo-")) return [request.id, null, null];
       try {
         const offers = await getRequestOffers(request.id);
-        return [request.id, offers];
-      } catch {
-        // Older locally seeded demo requests do not exist in the backend.
-        return [request.id, null];
+        return [request.id, offers, null];
+      } catch (fetchError) {
+        return [request.id, null, fetchError.message || "Could not contact the backend."];
       }
     })).then((entries) => {
-      if (!cancelled) setBackendOffers(Object.fromEntries(entries));
+      if (cancelled) return;
+      setBackendOffers(Object.fromEntries(entries.map(([id, offers]) => [id, offers])));
+      const failed = entries.filter(([, , message]) => message);
+      setOfferLoadError(failed.length
+        ? `Couldn't load offers for ${failed.length} request${failed.length === 1 ? "" : "s"}. ${failed[0][2]} Check that the backend is running and that it hasn't been restarted, then refresh.`
+        : "");
     }).finally(() => {
       if (!cancelled) setLoadingOffers(false);
     });
     return () => { cancelled = true; };
-  }, [email, version]);
+  }, [email, storedRequests, version]);
 
   const requests = storedRequests.map((request) => {
     const offers = backendOffers[request.id];
@@ -145,10 +152,11 @@ export default function UserPortal({ email, onSignIn, onSignOut, onBack }) {
             <div className="user-stats">
               <div><strong>{requests.length}</strong><span>Requests published</span></div>
               <div><strong>{totalBids}</strong><span>Airline offers</span></div>
-              <div><strong>{requests.filter((r) => r.status === "offer_selected").length}</strong><span>Offers selected</span></div>
+              <div><strong>{requests.filter((r) => r.acceptedBidId || r.status === "offer_selected").length}</strong><span>Offers selected</span></div>
             </div>
 
             {error && <p className="user-error" role="alert">{error}</p>}
+            {offerLoadError && <p className="user-error" role="alert">{offerLoadError}</p>}
             {loadingOffers && <p className="user-note">Checking for new airline offers…</p>}
             {requests.length === 0 ? (
               <section className="user-empty">

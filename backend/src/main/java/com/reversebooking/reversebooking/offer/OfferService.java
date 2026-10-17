@@ -103,6 +103,7 @@ public class OfferService {
                     offers.set(j, withStatus(other, OfferStatus.LOST));
                 }
             }
+            flightRequestService.closeBidding(current.requestId());
             refreshBidCount(current.requestId());
             return accepted;
         }

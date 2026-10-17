@@ -73,4 +73,18 @@ public class FlightRequestService {
             }
         }
     }
+
+    public void closeBidding(String requestId) {
+        for (int i = 0; i < requests.size(); i++) {
+            FlightRequest current = requests.get(i);
+            if (current.id().equals(requestId)) {
+                requests.set(i, new FlightRequest(
+                        current.id(), current.origin(), current.destination(), current.earliest(), current.latest(),
+                        current.passengers(), current.maxPricePence(), current.checkedBags(), current.directOnly(),
+                        Instant.now(), current.bidCount()
+                ));
+                return;
+            }
+        }
+    }
 }
