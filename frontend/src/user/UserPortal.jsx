@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { acceptDemoBid, getRequestsForEmail, DEMO_TRAVELLERS, seedDemoTraveller } from "./userData";
+import { acceptDemoBid, getRequestsForEmail, DEMO_TRAVELLERS, removeRequests, seedDemoTraveller } from "./userData";
 import { acceptBackendOffer, getRequestOffers } from "../airline/api.js";
 
 /* # ---------- EMAIL-ONLY DEMO SIGN-IN ---------- */
@@ -7,9 +7,11 @@ export default function UserPortal({ email, onSignIn, onSignOut, onBack }) {
   const [draftEmail, setDraftEmail] = useState(email || "");
   const [error, setError] = useState("");
   const [offerLoadError, setOfferLoadError] = useState("");
+  const [clearedCount, setClearedCount] = useState(0);
   const [version, setVersion] = useState(0);
   const [backendOffers, setBackendOffers] = useState({});
   const [loadingOffers, setLoadingOffers] = useState(false);
+  useEffect(() => { setClearedCount(0); }, [email]);
   const storedRequests = useMemo(() => email ? getRequestsForEmail(email) : [], [email, version]);
 
   useEffect(() => {
@@ -26,14 +28,22 @@ export default function UserPortal({ email, onSignIn, onSignOut, onBack }) {
         const offers = await getRequestOffers(request.id);
         return [request.id, offers, null];
       } catch (fetchError) {
+        // 404: the backend was restarted and no longer has this request. Not an error worth shouting about.
+        if (fetchError.status === 404) return [request.id, null, null, true];
         return [request.id, null, fetchError.message || "Could not contact the backend."];
       }
     })).then((entries) => {
       if (cancelled) return;
+      const expired = entries.filter(([, , , gone]) => gone).map(([id]) => id);
+      if (expired.length) {
+        removeRequests(expired);
+        setClearedCount((count) => count + expired.length);
+        setVersion((value) => value + 1);
+      }
       setBackendOffers(Object.fromEntries(entries.map(([id, offers]) => [id, offers])));
       const failed = entries.filter(([, , message]) => message);
       setOfferLoadError(failed.length
-        ? `Couldn't load offers for ${failed.length} request${failed.length === 1 ? "" : "s"}. ${failed[0][2]} Check that the backend is running and that it hasn't been restarted, then refresh.`
+        ? `Couldn't load offers for ${failed.length} request${failed.length === 1 ? "" : "s"}. ${failed[0][2]} Check that the backend is running, then refresh.`
         : "");
     }).finally(() => {
       if (!cancelled) setLoadingOffers(false);
@@ -157,6 +167,7 @@ export default function UserPortal({ email, onSignIn, onSignOut, onBack }) {
 
             {error && <p className="user-error" role="alert">{error}</p>}
             {offerLoadError && <p className="user-error" role="alert">{offerLoadError}</p>}
+            {clearedCount > 0 && <p className="user-note">{clearedCount} older request{clearedCount === 1 ? " was" : "s were"} cleared because the demo server restarted.</p>}
             {loadingOffers && <p className="user-note">Checking for new airline offers…</p>}
             {requests.length === 0 ? (
               <section className="user-empty">

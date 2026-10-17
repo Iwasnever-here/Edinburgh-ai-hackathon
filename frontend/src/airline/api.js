@@ -37,7 +37,9 @@ async function apiRequest(path, options = {}) {
   const text = await response.text()
   const body = text ? JSON.parse(text) : null
   if (!response.ok) {
-    throw new Error(body?.detail || body?.message || body?.title || `Request failed (${response.status})`)
+    const error = new Error(body?.detail || body?.message || body?.title || `Request failed (${response.status})`)
+    error.status = response.status
+    throw error
   }
   return body
 }

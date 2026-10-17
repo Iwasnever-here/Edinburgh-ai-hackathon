@@ -33,6 +33,13 @@ export function getRequestsForEmail(email) {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+// The backend keeps requests in memory, so a restart forgets them. Drop the ones it no longer knows.
+export function removeRequests(ids) {
+  if (!ids.length) return;
+  const gone = new Set(ids);
+  writeRequests(readRequests().filter((r) => !gone.has(r.id)));
+}
+
 export function createRequest(input) {
   if (!input.email || !(Number(input.maxBudget) > 0)) {
     throw new Error("An email and positive maximum budget are required.");
