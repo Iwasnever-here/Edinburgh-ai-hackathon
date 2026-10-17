@@ -35,6 +35,15 @@ _Link to a live demo, video, or screenshots._
 
 ## Getting Started
 
+### Backend
+
+The Spring Boot backend currently runs without a database. For the hackathon demo, backend data can be held in memory while the app is running.
+
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
 ### Prerequisites
 
 _List runtimes and tools needed (e.g. Node 20+, Python 3.11+)._
