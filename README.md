@@ -1,4 +1,4 @@
-# BidScanner
+# BidScanner (won 3rd)
 
 **Tell airlines what you need. Let them bid for you.**
 
