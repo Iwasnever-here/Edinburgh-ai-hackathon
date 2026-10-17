@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import logo from '../assets/logo.png'
 import { SIMULATED, getAllRequests, getRequestOffers, startSimulatedCompetition } from '../airline/api.js'
 import { useNow, usePolling } from '../airline/hooks.js'
 import ActivityFeed from './ActivityFeed.jsx'
@@ -67,8 +68,10 @@ function LiveScreen() {
     <div className="lb-screen">
       <header className="lb-top">
         <div className="lb-brand">
-          <span className="lb-brand__mark" aria-hidden="true">B</span>
-          <span className="lb-brand__name">BidScanner</span>
+          <Link className="lb-brand__home" to="/" aria-label="BidScanner home">
+            <img className="lb-brand__logo" src={logo} alt="" />
+            <span className="lb-brand__name">bidscanner</span>
+          </Link>
           <span className="lb-brand__view">Live bidding</span>
         </div>
         <p className="lb-top__tagline">Every bid and every price. Airlines never see this screen.</p>
