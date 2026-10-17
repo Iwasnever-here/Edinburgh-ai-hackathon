@@ -30,6 +30,11 @@ public class OfferController {
         return offerService.add(offer);
     }
 
+    @PostMapping("/api/offers/{offerId}/accept")
+    public Offer accept(@PathVariable Long offerId) {
+        return offerService.acceptOffer(offerId);
+    }
+
     @GetMapping("/api/requests/{requestId}/offers")
     public List<Offer> getForRequest(@PathVariable Long requestId) {
         if (!flightRequestService.existsById(requestId)) {
