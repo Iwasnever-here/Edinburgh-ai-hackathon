@@ -1,15 +1,22 @@
 package com.reversebooking.reversebooking.offer;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
+import com.reversebooking.reversebooking.airline.AirlineSummary;
 
-import java.math.BigDecimal;
+import java.time.Instant;
 
 public record Offer(
-    Long id,
-    @NotNull Long requestId,
-    @NotNull Long airlineId,
-    @NotNull @DecimalMin("0.01") BigDecimal price,
-    boolean accepted
+        String id,
+        String requestId,
+        String airlineId,
+        int pricePence,
+        int checkedBags,
+        boolean direct,
+        OfferStatus status,
+        String reasoning,
+        Instant createdAt,
+        String rejectionReason,
+        String supersedesOfferId,
+        ScoreBreakdown scoreBreakdown,
+        AirlineSummary airline
 ) {
 }

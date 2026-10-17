@@ -1,12 +1,55 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { acceptDemoBid, getRequestsForEmail, DEMO_TRAVELLERS, seedDemoTraveller } from "./userData";
+import { acceptBackendOffer, getRequestOffers } from "../airline/api.js";
 
 /* # ---------- EMAIL-ONLY DEMO SIGN-IN ---------- */
 export default function UserPortal({ email, onSignIn, onSignOut, onBack }) {
   const [draftEmail, setDraftEmail] = useState(email || "");
   const [error, setError] = useState("");
   const [version, setVersion] = useState(0);
-  const requests = email ? getRequestsForEmail(email) : [];
+  const [backendOffers, setBackendOffers] = useState({});
+  const [loadingOffers, setLoadingOffers] = useState(false);
+  const storedRequests = email ? getRequestsForEmail(email) : [];
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!email || storedRequests.length === 0) {
+      setBackendOffers({});
+      return () => { cancelled = true; };
+    }
+    setLoadingOffers(true);
+    Promise.all(storedRequests.map(async (request) => {
+      try {
+        const offers = await getRequestOffers(request.id);
+        return [request.id, offers];
+      } catch {
+        // Older locally seeded demo requests do not exist in the backend.
+        return [request.id, null];
+      }
+    })).then((entries) => {
+      if (!cancelled) setBackendOffers(Object.fromEntries(entries));
+    }).finally(() => {
+      if (!cancelled) setLoadingOffers(false);
+    });
+    return () => { cancelled = true; };
+  }, [email, version]);
+
+  const requests = storedRequests.map((request) => {
+    const offers = backendOffers[request.id];
+    if (!offers) return request;
+    const bids = offers
+      .filter((offer) => offer.status === "VALID" || offer.status === "ACCEPTED")
+      .map((offer) => ({
+        id: offer.id,
+        airline: offer.airline?.name || offer.airlineId,
+        price: offer.pricePence / 100,
+        features: `${offer.checkedBags} checked bag${offer.checkedBags === 1 ? "" : "s"}`,
+        stops: offer.direct ? 0 : 1,
+        status: offer.status,
+        backend: true,
+      }));
+    return { ...request, bids, acceptedBidId: bids.find((bid) => bid.status === "ACCEPTED")?.id || null };
+  });
   const totalBids = requests.reduce((sum, request) => sum + request.bids.length, 0);
 
   function submitEmail(e) {
@@ -31,9 +74,11 @@ export default function UserPortal({ email, onSignIn, onSignOut, onBack }) {
     }
   }
 
-  function chooseBid(requestId, bidId) {
+  async function chooseBid(requestId, bidId) {
     try {
-      acceptDemoBid(email, requestId, bidId);
+      const bid = requests.find((request) => request.id === requestId)?.bids.find((item) => item.id === bidId);
+      if (bid?.backend) await acceptBackendOffer(bidId);
+      else acceptDemoBid(email, requestId, bidId);
       setVersion((value) => value + 1);
       setError("");
     } catch (e) { setError(e.message); }
@@ -89,20 +134,26 @@ export default function UserPortal({ email, onSignIn, onSignOut, onBack }) {
                 <h1>My flight requests</h1>
                 <p>Signed in as <strong>{email}</strong></p>
               </div>
-              <button type="button" className="user-primary" onClick={onBack}>+ New travel request</button>
+              <div className="user-dashboard-actions">
+                <button type="button" className="user-secondary" disabled={loadingOffers} onClick={() => setVersion((value) => value + 1)}>
+                  {loadingOffers ? "Checking offers…" : "Refresh offers"}
+                </button>
+                <button type="button" className="user-primary" onClick={onBack}>+ New travel request</button>
+              </div>
             </header>
 
             <div className="user-stats">
               <div><strong>{requests.length}</strong><span>Requests published</span></div>
-              <div><strong>{totalBids}</strong><span>Simulated airline offers</span></div>
+              <div><strong>{totalBids}</strong><span>Airline offers</span></div>
               <div><strong>{requests.filter((r) => r.status === "offer_selected").length}</strong><span>Offers selected</span></div>
             </div>
 
             {error && <p className="user-error" role="alert">{error}</p>}
+            {loadingOffers && <p className="user-note">Checking for new airline offers…</p>}
             {requests.length === 0 ? (
               <section className="user-empty">
                 <h2>No travel requests yet</h2>
-                <p>Publish a request with your destination, dates and maximum budget. Mock airlines will bid for your trip.</p>
+                <p>Publish a request with your destination, dates and maximum budget. Airlines can then submit offers for your trip.</p>
                 <button type="button" className="user-primary" onClick={onBack}>Create my first request</button>
               </section>
             ) : requests.map((request) => {
@@ -119,7 +170,7 @@ export default function UserPortal({ email, onSignIn, onSignOut, onBack }) {
                     <span>{request.cabin}</span>
                     <strong>Max £{request.maxBudget.toFixed(2)} total</strong>
                   </div>
-                  <h3>Airline bids <small>({request.bids.length} simulated)</small></h3>
+                  <h3>Airline bids <small>({request.bids.length})</small></h3>
                   <div className="user-bids">
                     {request.bids.length === 0 && <p>No bids yet.</p>}
                     {[...request.bids].sort((a, b) => a.price - b.price).map((bid) => (
@@ -132,11 +183,11 @@ export default function UserPortal({ email, onSignIn, onSignOut, onBack }) {
                       </div>
                     ))}
                   </div>
-                  {selected && <p className="user-note">You selected {selected.airline}'s simulated offer. No real flight has been booked or paid for.</p>}
+                  {selected && <p className="user-note">You selected {selected.airline}'s offer. No real flight has been booked or paid for.</p>}
                 </article>
               );
             })}
-            <p className="user-disclaimer">All offers are fictional and generated locally. This dashboard is not a secure account or a real booking service.</p>
+            <p className="user-disclaimer">This demo does not book or pay for a real flight. Requests and offers are held in memory by the backend and reset when it restarts.</p>
           </>
         )}
       </div>

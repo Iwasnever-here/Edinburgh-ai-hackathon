@@ -2,7 +2,8 @@ import React, { useState } from "react";
 
 import UserPortal from "./user/UserPortal";
 
-import { getDemoEmail, saveDemoEmail, createRequest, generateDemoBids } from "./user/userData";
+import { getDemoEmail, saveDemoEmail, createRequest } from "./user/userData";
+import { publishRequest } from "./airline/api.js";
 
 import "./user/user.css";
 
@@ -116,7 +117,7 @@ export default function App() {
 
 
 
-  function handleSearch(e) {
+  async function handleSearch(e) {
 
     e.preventDefault();
 
@@ -158,21 +159,25 @@ export default function App() {
 
     try {
 
-      const request = createRequest({
-
-        email,
-
-        origin: origin.trim(), destination: destination.trim(),
-
-        depart, back: tripType === "Return" ? back : null,
-
-        tripType, adults, children, cabin, direct, nearby,
-
-        maxBudget: budget,
-
+      const backendRequest = await publishRequest({
+        origin: origin.trim(),
+        destination: destination.trim(),
+        earliest: depart,
+        latest: tripType === "Return" ? back : depart,
+        passengers: adults + children,
+        maxPricePence: Math.round(budget * 100),
+        checkedBags: 0,
+        directOnly: direct,
       });
 
-      generateDemoBids(request.id);
+      const request = createRequest({
+        id: backendRequest.id,
+        email,
+        origin: origin.trim(), destination: destination.trim(),
+        depart, back: tripType === "Return" ? back : null,
+        tripType, adults, children, cabin, direct, nearby,
+        maxBudget: budget,
+      });
 
       // The same email is used by the traveller dashboard to find this request.
 

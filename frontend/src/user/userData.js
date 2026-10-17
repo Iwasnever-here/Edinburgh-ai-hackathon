@@ -39,7 +39,7 @@ export function createRequest(input) {
   }
   const request = {
     ...input,
-    id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    id: input.id || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`),
     email: input.email.trim().toLowerCase(),
     maxBudget: Number(input.maxBudget),
     createdAt: new Date().toISOString(),

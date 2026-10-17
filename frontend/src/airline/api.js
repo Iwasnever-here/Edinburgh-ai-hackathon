@@ -1,12 +1,8 @@
-/**
- * Airline portal API. Every function currently resolves mock data from an
- * in-memory store after ~300ms; each one names the backend endpoint it will call.
- * Results are deep-cloned so callers can't mutate the store.
- */
+/** Airline portal API calls the Spring backend through Vite's /api proxy. */
 import { AIRLINES, COMPETITOR_IDS, createSeedOffers, createSeedRequests } from './mockData.js'
 
-/** True while this module serves mock data. The UI labels competitor activity as simulated. */
-export const SIMULATED = true
+/** The portal now reads and writes live backend data; simulated rival bidding is disabled. */
+export const SIMULATED = false
 
 const LATENCY_MS = 300
 const STRATEGY_MODES = ['AGGRESSIVE', 'BALANCED', 'PREMIUM']
@@ -28,6 +24,29 @@ function respond(value) {
 
 function fail(message) {
   return new Promise((_, reject) => setTimeout(() => reject(new Error(message)), LATENCY_MS))
+}
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...options.headers,
+    },
+  })
+  const text = await response.text()
+  const body = text ? JSON.parse(text) : null
+  if (!response.ok) {
+    throw new Error(body?.detail || body?.message || body?.title || `Request failed (${response.status})`)
+  }
+  return body
+}
+
+export function publishRequest(request) {
+  return apiRequest('/api/requests', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
 }
 
 const pounds = (pence) => `£${(pence / 100).toFixed(pence % 100 ? 2 : 0)}`
@@ -76,7 +95,7 @@ function addOffer(fields) {
  * @returns {Promise<import('./types.js').Airline[]>}
  */
 export function getAirlines() {
-  return respond(db.airlines)
+  return apiRequest('/api/airlines')
 }
 
 /**
@@ -86,13 +105,7 @@ export function getAirlines() {
  * @returns {Promise<import('./types.js').TravellerRequest[]>}
  */
 export function getMarketplace(airlineId) {
-  settleClosedRequests()
-  if (!findAirline(airlineId)) return fail('Unknown airline.')
-  const open = db.requests
-    .filter((r) => isOpen(r))
-    .sort((a, b) => a.biddingClosesAt.localeCompare(b.biddingClosesAt))
-    .map(withBidCount)
-  return respond(open)
+  return apiRequest(`/api/airlines/${encodeURIComponent(airlineId)}/marketplace`)
 }
 
 /**
@@ -105,29 +118,10 @@ export function getMarketplace(airlineId) {
  * @returns {Promise<import('./types.js').Offer>}
  */
 export function submitOffer(requestId, airlineId, offer) {
-  settleClosedRequests()
-  const request = findRequest(requestId)
-  if (!request) return fail('Unknown request.')
-  if (!findAirline(airlineId)) return fail('Unknown airline.')
-  if (!isOpen(request)) return fail('Bidding on this request has closed.')
-
-  const rejectionReason = validateOffer(request, offer)
-  if (rejectionReason) {
-    return respond(addOffer({ requestId, airlineId, ...offer, status: 'REJECTED', rejectionReason, reasoning: 'Placed manually from the airline portal.' }))
-  }
-
-  const previous = activeOffers(requestId).find((o) => o.airlineId === airlineId)
-  if (previous) previous.status = 'SUPERSEDED'
-  return respond(
-    addOffer({
-      requestId,
-      airlineId,
-      ...offer,
-      status: 'VALID',
-      reasoning: 'Placed manually from the airline portal.',
-      ...(previous && { supersedesOfferId: previous.id }),
-    }),
-  )
+  return apiRequest(`/api/requests/${encodeURIComponent(requestId)}/offers`, {
+    method: 'POST',
+    body: JSON.stringify({ airlineId, ...offer }),
+  })
 }
 
 /**
@@ -139,29 +133,7 @@ export function submitOffer(requestId, airlineId, offer) {
  * @returns {Promise<import('./types.js').Standing | null>}
  */
 export function getStanding(requestId, airlineId) {
-  settleClosedRequests()
-  const request = findRequest(requestId)
-  if (!request) return fail('Unknown request.')
-  const active = activeOffers(requestId)
-  const mine = active.find((o) => o.airlineId === airlineId)
-  if (!mine) return respond(null)
-
-  const others = active.filter((o) => o !== mine)
-  const priceRank = 1 + others.filter((o) => o.pricePence < mine.pricePence).length
-  const strengths = []
-  if (priceRank === 1) strengths.push(others.length ? 'Lowest price' : 'Only bid so far')
-  if (mine.checkedBags > request.checkedBags && others.every((o) => o.checkedBags < mine.checkedBags)) {
-    strengths.push('Best baggage offer')
-  }
-  if (mine.direct && others.some((o) => !o.direct)) strengths.push('Direct flight (not every bidder offers one)')
-
-  const cheaper = priceRank - 1
-  const note =
-    priceRank === 1
-      ? 'You are the cheapest valid bid right now. Rivals can still undercut you before bidding closes.'
-      : `${cheaper} bid${cheaper === 1 ? ' is' : 's are'} cheaper than yours. Lower your price or add value to climb.`
-
-  return respond({ priceRank, totalBids: active.length, strengths, note })
+  return apiRequest(`/api/requests/${encodeURIComponent(requestId)}/standing?airlineId=${encodeURIComponent(airlineId)}`)
 }
 
 /**
@@ -172,27 +144,7 @@ export function getStanding(requestId, airlineId) {
  * @returns {Promise<import('./types.js').BidThread[]>}
  */
 export function getMyBids(airlineId) {
-  settleClosedRequests()
-  if (!findAirline(airlineId)) return fail('Unknown airline.')
-  const now = Date.now()
-  const byRequest = new Map()
-  for (const offer of db.offers) {
-    if (offer.airlineId !== airlineId) continue
-    if (!byRequest.has(offer.requestId)) byRequest.set(offer.requestId, [])
-    byRequest.get(offer.requestId).push(offer)
-  }
-  const threads = [...byRequest].map(([requestId, offers]) => ({
-    request: withBidCount(findRequest(requestId)),
-    offers: offers.sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-  }))
-  threads.sort((a, b) => {
-    const aOpen = isOpen(a.request, now)
-    const bOpen = isOpen(b.request, now)
-    if (aOpen !== bOpen) return aOpen ? -1 : 1
-    const order = a.request.biddingClosesAt.localeCompare(b.request.biddingClosesAt)
-    return aOpen ? order : -order
-  })
-  return respond(threads)
+  return apiRequest(`/api/airlines/${encodeURIComponent(airlineId)}/bids`)
 }
 
 /**
@@ -202,11 +154,10 @@ export function getMyBids(airlineId) {
  * @returns {Promise<import('./types.js').Airline>}
  */
 export function updateStrategy(airlineId, strategy) {
-  const airline = findAirline(airlineId)
-  if (!airline) return fail('Unknown airline.')
-  if (!STRATEGY_MODES.includes(strategy.mode)) return fail('Unknown strategy.')
-  airline.strategy = { enabled: Boolean(strategy.enabled), mode: strategy.mode }
-  return respond(airline)
+  return apiRequest(`/api/airlines/${encodeURIComponent(airlineId)}/strategy`, {
+    method: 'PUT',
+    body: JSON.stringify(strategy),
+  })
 }
 
 /* ------------------------------------------------------------------------ */
@@ -322,16 +273,7 @@ function airlineSummary(airlineId) {
  * @returns {Promise<import('./types.js').TravellerRequest[]>}
  */
 export function getAllRequests() {
-  settleClosedRequests()
-  const now = Date.now()
-  const requests = [...db.requests].sort((a, b) => {
-    const aOpen = isOpen(a, now)
-    const bOpen = isOpen(b, now)
-    if (aOpen !== bOpen) return aOpen ? -1 : 1
-    const order = a.biddingClosesAt.localeCompare(b.biddingClosesAt)
-    return aOpen ? order : -order
-  })
-  return respond(requests.map(withBidCount))
+  return apiRequest('/api/requests')
 }
 
 /**
@@ -342,17 +284,10 @@ export function getAllRequests() {
  * @returns {Promise<import('./types.js').JudgeOffer[]>}
  */
 export function getRequestOffers(requestId) {
-  settleClosedRequests()
-  const request = findRequest(requestId)
-  if (!request) return fail('Unknown request.')
-  const scored = ['VALID', 'ACCEPTED', 'LOST']
-  const offers = db.offers
-    .filter((o) => o.requestId === requestId)
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((o) => ({
-      ...o,
-      airline: airlineSummary(o.airlineId),
-      ...(scored.includes(o.status) && { scoreBreakdown: scoreOffer(request, o) }),
-    }))
-  return respond(offers)
+  return apiRequest(`/api/requests/${encodeURIComponent(requestId)}/offers`)
+}
+
+/** POST /api/offers/{id}/accept */
+export function acceptBackendOffer(offerId) {
+  return apiRequest(`/api/offers/${encodeURIComponent(offerId)}/accept`, { method: 'POST' })
 }
