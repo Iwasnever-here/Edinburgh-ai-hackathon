@@ -92,3 +92,33 @@ export const OFFER_STATUSES = /** @type {const} */ ([
  * @property {TravellerRequest} request
  * @property {Offer[]} offers
  */
+
+/* ---------- Judges' view ---------- */
+
+/**
+ * @typedef {Object} ScoreComponent
+ * @property {'Price' | 'Baggage' | 'Direct'} name
+ * @property {number} weight        0–1; all weights sum to 1
+ * @property {number} score         0–1
+ * @property {number} contribution  points out of 100 (weight × score × 100)
+ */
+
+/**
+ * @typedef {Object} ScoreBreakdown
+ * @property {number} total  0–100, the sum of the component contributions
+ * @property {ScoreComponent[]} components
+ */
+
+/**
+ * @typedef {Object} AirlineSummary
+ * @property {string} id
+ * @property {string} name
+ * @property {string} code
+ * @property {string} colour
+ */
+
+/**
+ * An offer as the judges see it: every field, plus who placed it and, for offers
+ * that passed validation (VALID, ACCEPTED, LOST), how it scores.
+ * @typedef {Offer & { airline: AirlineSummary, scoreBreakdown?: ScoreBreakdown }} JudgeOffer
+ */

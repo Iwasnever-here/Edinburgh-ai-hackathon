@@ -262,3 +262,97 @@ export function startSimulatedCompetition(signedInAirlineId, onBid) {
   schedule()
   return () => clearTimeout(timer)
 }
+
+/* ------------------------------------------------------------------------ */
+/* Judges' view                                                             */
+/* ------------------------------------------------------------------------ */
+
+/** Display names for the mock-only competitor bidders (they have no portal account). */
+const COMPETITOR_AIRLINES = {
+  'ext-1': { id: 'ext-1', name: 'Heron Air', code: 'HA', colour: '#7c3aed' },
+  'ext-2': { id: 'ext-2', name: 'Kestrel Airways', code: 'KA', colour: '#be185d' },
+  'ext-3': { id: 'ext-3', name: 'Puffin Jet', code: 'PJ', colour: '#15803d' },
+}
+
+const SCORE_WEIGHTS = { Price: 0.6, Baggage: 0.2, Direct: 0.2 }
+
+/**
+ * Scores an offer that passed validation, out of 100. The backend should copy this exactly.
+ *
+ *   Price   (weight 0.6): savings against the traveller's budget. A bid at the budget scores 0,
+ *                         a bid at half the budget or less scores 1, linear in between:
+ *                         clamp((maxPrice - price) / (0.5 × maxPrice), 0, 1)
+ *   Baggage (weight 0.2): checked bags per passenger, capped at one each:
+ *                         min(1, checkedBags / passengers)
+ *   Direct  (weight 0.2): 1 if direct, otherwise 0.
+ *
+ *   contribution = weight × score × 100 (points), total = sum of contributions.
+ *   Scores are rounded to 3 dp and points to 1 dp, for display only.
+ *
+ * @param {Omit<import('./types.js').TravellerRequest, 'bidCount'>} request
+ * @param {import('./types.js').OfferInput} offer
+ * @returns {import('./types.js').ScoreBreakdown}
+ */
+export function scoreOffer(request, offer) {
+  const clamp01 = (n) => Math.min(1, Math.max(0, n))
+  const scores = {
+    Price: clamp01((request.maxPricePence - offer.pricePence) / (0.5 * request.maxPricePence)),
+    Baggage: clamp01(offer.checkedBags / request.passengers),
+    Direct: offer.direct ? 1 : 0,
+  }
+  const components = Object.entries(SCORE_WEIGHTS).map(([name, weight]) => ({
+    name,
+    weight,
+    score: Math.round(scores[name] * 1000) / 1000,
+    contribution: Math.round(weight * scores[name] * 1000) / 10,
+  }))
+  const total = Math.round(components.reduce((sum, c) => sum + c.weight * scores[c.name], 0) * 1000) / 10
+  return { total, components }
+}
+
+function airlineSummary(airlineId) {
+  const airline = findAirline(airlineId)
+  if (airline) return { id: airline.id, name: airline.name, code: airline.code, colour: airline.colour }
+  return COMPETITOR_AIRLINES[airlineId] ?? { id: airlineId, name: airlineId, code: '??', colour: '#64748b' }
+}
+
+/**
+ * GET /api/requests
+ * Every request, open ones first (soonest-closing), then closed (most recent first).
+ * @returns {Promise<import('./types.js').TravellerRequest[]>}
+ */
+export function getAllRequests() {
+  settleClosedRequests()
+  const now = Date.now()
+  const requests = [...db.requests].sort((a, b) => {
+    const aOpen = isOpen(a, now)
+    const bOpen = isOpen(b, now)
+    if (aOpen !== bOpen) return aOpen ? -1 : 1
+    const order = a.biddingClosesAt.localeCompare(b.biddingClosesAt)
+    return aOpen ? order : -order
+  })
+  return respond(requests.map(withBidCount))
+}
+
+/**
+ * GET /api/requests/{id}/offers
+ * Every offer on the request, in any status, oldest first. Judges' view only:
+ * this exposes all competitors' prices, which airlines must never see.
+ * @param {string} requestId
+ * @returns {Promise<import('./types.js').JudgeOffer[]>}
+ */
+export function getRequestOffers(requestId) {
+  settleClosedRequests()
+  const request = findRequest(requestId)
+  if (!request) return fail('Unknown request.')
+  const scored = ['VALID', 'ACCEPTED', 'LOST']
+  const offers = db.offers
+    .filter((o) => o.requestId === requestId)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .map((o) => ({
+      ...o,
+      airline: airlineSummary(o.airlineId),
+      ...(scored.includes(o.status) && { scoreBreakdown: scoreOffer(request, o) }),
+    }))
+  return respond(offers)
+}

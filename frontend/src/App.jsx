@@ -343,6 +343,44 @@ export default function App() {
 
   }
 
+  .live-link {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+  }
+
+  .live-dot {
+
+    width: 8px;
+
+    height: 8px;
+
+    border-radius: 50%;
+
+    background: #16a34a;
+
+    animation: live-dot-pulse 1.6s ease-out infinite;
+
+  }
+
+  @keyframes live-dot-pulse {
+
+    0% { box-shadow: 0 0 0 0 rgb(22 163 74 / 55%); }
+
+    100% { box-shadow: 0 0 0 7px rgb(22 163 74 / 0%); }
+
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+
+    .live-dot { animation: none; }
+
+  }
+
   .menu-btn {
 
     display: none;
@@ -1822,6 +1860,8 @@ export default function App() {
           <nav className={`topnav ${menu ? "open" : ""}`} aria-label="Main navigation">
 
             <button className="icon-btn" onClick={() => alert("Language and currency selection is a demo.")}>🌐 EN · GBP</button>
+
+            <Link to="/live" className="live-link"><span className="live-dot" aria-hidden="true" />Live bidding</Link>
 
             <Link to="/airline">Airline login</Link>
 
